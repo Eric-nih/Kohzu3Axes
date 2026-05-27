@@ -61,10 +61,10 @@ homeAll(ser,axes)
 
 asyncio.run(readyCheck(ser, axes))
 
-#print("moving to (5.0,5.0, 10.3)mm" )
-#pulses = conv2Pulse((-3.,0.0,-50.0),dist2pulse)
-#print("pulses = ", pulses)
-#gotoPosition(ser,pulses)
+# print("moving to (5.0,5.0, 10.3)mm" )
+pulses = conv2Pulse((-3.,3.0,-50.0),dist2pulse)
+print("pulses = ", pulses)
+gotoPosition(ser,pulses)
 
 ser.close()
 print("End of program")

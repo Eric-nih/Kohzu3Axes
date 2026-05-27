@@ -12,7 +12,7 @@ def homeAll(ser,axesTuple):
         ser.write(prepC.prepCommand(homeCommand))
         while ser.in_waiting < 4:
             time.sleep(.1)
-        # print(ser.readline().decode().strip())
+        print(ser.readline().decode().strip())
 
     return
 
