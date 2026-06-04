@@ -1,6 +1,7 @@
-# function to add needed characters to a command string
-# for commands sent to a Kohzu SC type controller
+
 def prepCommand(str):
+    """Add needed characters to a command string
+    for commands sent to a Kohzu SC type controller"""
     print(str)
     output = bytearray(b'\x02') # ASCII STX character. This is needed by the controller
     output += bytearray(str,"utf-8")

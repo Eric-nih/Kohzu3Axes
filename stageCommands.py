@@ -1,10 +1,11 @@
-# homeAll.py
-# Use the ORG command on all axes
+
 import prepCommand as prepC
 import time
 
+# homeAll.py
+# Use the ORG command on all axes
 def homeAll(ser,axesTuple):
-
+    """Home all stages in axesTuple using the ORG command"""
     for axis in axesTuple:
         homeCommand = "ORG"
         homeCommand += str(axis)
@@ -13,10 +14,11 @@ def homeAll(ser,axesTuple):
         while ser.in_waiting < 4:
             time.sleep(.1)
         print(ser.readline().decode().strip())
-
     return
 
+
 def gotoPosition(ser,Pos):
+    """Go to an absolute position, as measured from the last home position."""
     # Pos needs xyz coordinates
     for i in range(len(Pos)):
         command = "APS"
@@ -30,7 +32,9 @@ def gotoPosition(ser,Pos):
         print(ser.readline().decode().strip())
     return
 
+
 def moveRelative(ser,Dist):
+    """Move a certain distance from the current position."""
     # Dist needs xyz distances
     for i in range(len(Dist)):
         command = "RPS"
@@ -45,6 +49,7 @@ def moveRelative(ser,Dist):
     return
 
 def idleCheck(ser, a):
+    """Check if stage a is idle and ready for the next command."""
     command = "STR1/"
     command += str(a)
     # print("idleCheck command = ", command)
@@ -62,3 +67,36 @@ def idleCheck(ser, a):
         return False
     else:
         return True
+    
+def stop(ser, a):
+    """Stop stage a immediately."""
+    command = "STP"
+    command += str(a)
+    command += "/0"
+    ser.write(prepC.prepCommand(command))
+    while ser.in_waiting < 4:
+        time.sleep(.1)
+    print(ser.readline().decode().strip())
+    return
+
+
+def readPos(ser, a):
+    """Read the stage position, in pulses."""
+    command = "RDP"
+    command += str(a)
+    command += "/0"
+    ser.write(prepC.prepCommand(command))
+    while ser.in_waiting < 4:
+        time.sleep(.1)
+
+    reply = ser.readline().decode().strip()
+    print(reply)
+
+    # Check for an error message
+    if reply[0] != 'C':
+        print("error in reading stage position")
+        return None
+    else:
+        replySplit = reply.split("\t")
+        position = int(replySplit[-1])
+    return position

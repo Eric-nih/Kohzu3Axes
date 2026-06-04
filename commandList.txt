@@ -1,0 +1,31 @@
+# List of commonly used commands to send to SC-410 controller
+
+# Home stage 1
+ORG1/2/0/0/3/0
+
+# Set speed and acceleration of stage 1
+ASI1/150/1500/20/20/0/0/0/1/1/0/0/2/0
+
+# Move stage 1 to +4000 pulses
+APS1/2/0/0/4000/3/0/0
+
+# move stage 1 4000 pulses from current position
+RPS/1/2/0/0/4000/3/0/0
+
+# Turn off stage 1
+COF1/0
+
+# Get controller ID
+IDN 
+
+# read position of stage 1
+RDP1/0
+
+# read stage 1 settings
+RMS1
+
+# stop stage 1
+STP1/0
+
+# status read, NOTE: the stage number is the second parameter.
+STR1/1

@@ -1,8 +1,8 @@
 # main program for controlling stages
 
-# TODO: add function to move to a position
+# TODO: done, 5/28/2026, add function to move to a position
 #       add function to move a relative distance
-#       add funtion to home all the stages
+#       done, 5/28/2026, add funtion to home all the stages
 #       start with a text interface to test the functions
 #       develop a GUI interface
 #       Find a way to start this by clicking on an icon in Windows
@@ -45,14 +45,14 @@ async def wait4idle(ser, axes):
     if allIdle:
         break
 
-    time.sleep(1)
+    time.sleep(0.5)
 
 async def readyCheck(ser, axes):
     try:
         ready = await asyncio.wait_for(wait4idle(ser, axes), timeout=2)
         # print("ready = ", ready)
     except asyncio.TimeoutError:
-        print("Error: It took to long for the controller to respond")
+        print("Error: It took too long for the controller to respond")
 
 
 # home the stages
@@ -61,10 +61,15 @@ homeAll(ser,axes)
 
 asyncio.run(readyCheck(ser, axes))
 
-# print("moving to (5.0,5.0, 10.3)mm" )
-pulses = conv2Pulse((-3.,3.0,-50.0),dist2pulse)
+print("moving to (-5.0,5.0, -45)mm" )
+pulses = conv2Pulse((-5.,5.0,-45.0),dist2pulse)
 print("pulses = ", pulses)
 gotoPosition(ser,pulses)
+
+print("The Current position of stage 2 is ", readPos(ser,2))
+print("moving stage 3 by 15mm")
+pulses = conv2Pulse((0.,0.,15.),dist2pulse)
+moveRelative(ser,pulses)
 
 ser.close()
 print("End of program")
