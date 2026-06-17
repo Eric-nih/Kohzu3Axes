@@ -71,5 +71,6 @@ print("moving stage 3 by 15mm")
 pulses = conv2Pulse((0.,0.,15.),dist2pulse)
 moveRelative(ser,pulses)
 
+
 ser.close()
 print("End of program")

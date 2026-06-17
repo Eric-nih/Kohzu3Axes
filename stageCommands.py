@@ -1,6 +1,6 @@
 
 import prepCommand as prepC
-import time
+import time, asyncio
 
 # homeAll.py
 # Use the ORG command on all axes
@@ -67,7 +67,30 @@ def idleCheck(ser, a):
         return False
     else:
         return True
-    
+
+# NOTE: doing one command right after another causes problems.
+# We need to check if stages are idle before proceding.  EEB 5/22/2026
+async def wait4idle(ser, axes):
+    while True:
+        allIdle = True
+        for axis in axes:
+            # print(idleCheck(ser, axis))
+            # print("axis = ", axis)
+            allIdle = allIdle and idleCheck(ser, axis)
+
+        print("allIdle = ", allIdle)
+        if allIdle:
+            break
+
+        time.sleep(0.5)
+
+async def readyCheck(ser, axes):
+    try:
+        ready = await asyncio.wait_for(wait4idle(ser, axes), timeout=2)
+        # print("ready = ", ready)
+    except asyncio.TimeoutError:
+        print("Error: It took too long for the controller to respond")
+
 def stop(ser, a):
     """Stop stage a immediately."""
     command = "STP"
