@@ -18,6 +18,7 @@ axes = (1,2,3)
 dist2pulse = (4000,4000,500) # vertical stage value appears to be 500 from measurements.
 
 def conv2Pulse(Dist,D2P):
+    """Kohzu stages move a set number of pulses. This function converts a distance in mm to the number of pulses for each axis."""
     result = list()
     for i in range(len(Dist)):
         result.append(int(Dist[i]* D2P[i]))
@@ -42,18 +43,18 @@ class MainWidget(QMainWindow):
         self.toolbar = QToolBar("Main Toolbar")
         self.addToolBar(self.toolbar)
 
-        label = QLabel("Let's Start!")
-        label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setStyleSheet("font-size: 24px;")
-        self.setCentralWidget(label)
+        self.label = QLabel("Let's get started!")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.label.setStyleSheet("font-size: 24px;")
+        self.setCentralWidget(self.label)
 
         home_action = QAction("Home all", self)
-        home_action.setStatusTip("Home all stages")
+        home_action.setStatusTip("Homing all stages")
         home_action.triggered.connect(self.homeAll)
         self.toolbar.addAction(home_action)
 
         goStart_action = QAction("Go to start", self)
-        goStart_action.setStatusTip("Go to starting position for scanning")
+        goStart_action.setStatusTip("Going to starting position for scanning")
         goStart_action.triggered.connect(self.goStart)
         self.toolbar.addAction(goStart_action)
 
@@ -65,15 +66,34 @@ class MainWidget(QMainWindow):
         
         
     def homeAll(self):
+        """Send all stages to home position"""
         stageC.homeAll(self.ser,axes)
         asyncio.run(stageC.readyCheck(self.ser, axes))
+        self.updatePosition()
 
     def goStart(self):
-        # Move to starting position for scanning
-        startPos = (0,0,50)
+        """Move to starting position for scanning"""
+        startPos = (0.,0.,50.)
         pulsePos = conv2Pulse(startPos,dist2pulse)
         stageC.gotoPosition(self.ser, pulsePos)
         asyncio.run(stageC.readyCheck(self.ser, axes))
+        self.updatePosition()
+
+    def calculatePosition(self):
+        """Calculate the current position of the stages in mm, returning a list"""
+        Positions = [0.,0.,0.]
+        for a in axes:
+            Positions[a-1] = stageC.readPos(self.ser,a)/dist2pulse[a-1]
+            # print("Position of axis ", a, " = ", Positions[a-1], " mm")
+        return Positions
+    
+    def updatePosition(self):
+        """Update the label with the current position of the stages"""
+        self.label.setText("current position: " + str(self.calculatePosition()))
+        self.label.update()
+
+        
+        
 
 
 
