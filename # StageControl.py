@@ -4,7 +4,9 @@ import sys, serial
 import time, asyncio
 import stageCommands as stageC
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QLabel, QCheckBox, QToolBar) 
+    QApplication, QMainWindow, QLabel, QCheckBox, QPushButton, QToolBar, QHBoxLayout,
+    QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox
+)
 from PySide6.QtGui import QIcon, QKeySequence, QAction
 from PySide6.QtCore import Qt
 
@@ -35,6 +37,9 @@ class MainWidget(QMainWindow):
         print("Opening Connection to controller")
         self.statusBar().showMessage("Connected to controller")
 
+        widget = QWidget()
+        self.setCentralWidget(widget)
+
         # Menu
         self.menu = self.menuBar()
         file_menu = self.menu.addMenu("File")
@@ -43,10 +48,31 @@ class MainWidget(QMainWindow):
         self.toolbar = QToolBar("Main Toolbar")
         self.addToolBar(self.toolbar)
 
+        mainLayout = QHBoxLayout()
+        gotoLayout = QFormLayout()
+        graphLayout = QVBoxLayout()
+
+        mainLayout.addLayout(gotoLayout)
+        self.gotoButton = QPushButton("Go to position")
+        self.gotoX = QDoubleSpinBox()
+        self.gotoY = QDoubleSpinBox()
+        self.gotoZ = QDoubleSpinBox()
+        gotoLayout.addRow(self.gotoButton)
+        gotoLayout.addRow("X (mm)",self.gotoX)
+        gotoLayout.addRow("y (mm)",self.gotoY)
+        gotoLayout.addRow("z (mm)",self.gotoZ)
+        self.gotoX.setRange(-12.5,12.5)
+        self.gotoY.setRange(-12.5,12.5)
+        self.gotoZ.setRange(-50,50)
+
         self.label = QLabel("Let's get started!")
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.label.setStyleSheet("font-size: 24px;")
-        self.setCentralWidget(self.label)
+        mainLayout.addWidget(self.label)
+
+        mainLayout.addLayout(graphLayout)
+        
+        widget.setLayout(mainLayout)
 
         home_action = QAction("Home all", self)
         home_action.setStatusTip("Homing all stages")
@@ -58,17 +84,24 @@ class MainWidget(QMainWindow):
         goStart_action.triggered.connect(self.goStart)
         self.toolbar.addAction(goStart_action)
 
+        self.gotoButton.setStatusTip("Go to specified position")
+        self.gotoButton.statusTip(True)
+        self.gotoButton.clicked.connect(self.gotoPosition)
+
         self.setStatusBar(self.statusBar())
 
         # Exit QAction
         file_menu.addAction(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit),
                             "Exit", QKeySequence.StandardKey.Quit, self.close)
         
-        
+
+    # The following are slot functions that respond to GUI events.
+       
     def homeAll(self):
         """Send all stages to home position"""
         stageC.homeAll(self.ser,axes)
         asyncio.run(stageC.readyCheck(self.ser, axes))
+        print("All stages homed.")
         self.updatePosition()
 
     def goStart(self):
@@ -92,10 +125,19 @@ class MainWidget(QMainWindow):
         self.label.setText("current position: " + str(self.calculatePosition()))
         self.label.update()
 
-        
-        
+    def gotoPosition(self):
+        """Move to a specified position in mm"""
+        position = (self.gotoX.value(), self.gotoY.value(), self.gotoZ.value())
+        pulsePos = conv2Pulse(position,dist2pulse)
+        print("Pulse position: ", pulsePos)
+        stageC.gotoPosition(self.ser, pulsePos)
+        asyncio.run(stageC.readyCheck(self.ser, axes))
+        self.updatePosition()
 
-
+    def buttonClicked(self):
+        """Handle button click event"""
+        print("Button clicked!")
+        # You can add more functionality here as needed
 
         
 if __name__ == "__main__":
