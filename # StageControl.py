@@ -5,27 +5,34 @@ import time, asyncio
 import stageCommands as stageC
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QCheckBox, QPushButton, QToolBar, QHBoxLayout,
-    QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox
+    QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox, QSpinBox, 
+    QTabWidget
 )
-from PySide6.QtGui import QIcon, QKeySequence, QAction
-from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QKeySequence, QAction, QFont
+from PySide6.QtCore import Qt, QTimer
 
 # Axes in use
 axes = (1,2,3)
 
 # conversion from mm to pulses for each axis
-# These values depend on the stages
-# being used and on the number of microsteps that they are
-# set for
+# These values depend on the stages being used 
+# and on the number of microsteps that they are set for
+ 
 dist2pulse = (4000,4000,500) # vertical stage value appears to be 500 from measurements.
 
 def conv2Pulse(Dist,D2P):
     """Kohzu stages move a set number of pulses. This function converts a distance in mm to the number of pulses for each axis."""
-    result = list()
-    for i in range(len(Dist)):
-        result.append(int(Dist[i]* D2P[i]))
-
-    return result
+    if(isinstance(Dist,(list,tuple))):
+        result = list()
+        for i in range(len(Dist)):
+            result.append(int(Dist[i]* D2P[i]))
+        return result
+    elif(isinstance(Dist,(float,int))):
+        return(Dist * D2P)
+    else:
+        print("ERROR: unkown data Type")
+        return None
+              
 
 class MainWidget(QMainWindow):
     def __init__(self):
@@ -46,13 +53,24 @@ class MainWidget(QMainWindow):
 
         # Toolbar
         self.toolbar = QToolBar("Main Toolbar")
+        
         self.addToolBar(self.toolbar)
 
         mainLayout = QHBoxLayout()
-        gotoLayout = QFormLayout()
+        
         graphLayout = QVBoxLayout()
+        tabs = QTabWidget(self)
 
-        mainLayout.addLayout(gotoLayout)
+        gotoPage = QWidget(self)
+        gotoLayout = QFormLayout()
+        scanLayout = QFormLayout()
+        gotoPage.setLayout(gotoLayout)
+        scanPage = QWidget(self)
+        scanPage.setLayout(scanLayout)
+
+        mainLayout.addWidget(tabs)
+
+        # set up the form to go to a position
         self.gotoButton = QPushButton("Go to position")
         self.gotoX = QDoubleSpinBox()
         self.gotoY = QDoubleSpinBox()
@@ -64,6 +82,19 @@ class MainWidget(QMainWindow):
         self.gotoX.setRange(-12.5,12.5)
         self.gotoY.setRange(-12.5,12.5)
         self.gotoZ.setRange(-50,50)
+
+        # Set up the form to perform a vertical scan
+        self.vertScanButton = QPushButton("Start Vertical Scan")
+        self.distanceWidget = QDoubleSpinBox()
+        self.stepsWidget = QSpinBox()
+        scanLayout.addRow(self.vertScanButton)
+        scanLayout.addRow("Distance to Scan",self.distanceWidget)
+        scanLayout.addRow("Steps to scan",self.stepsWidget)
+        self.distanceWidget.setRange(0,100.0)
+        self.stepsWidget.setRange(1,2000)
+
+        tabs.addTab(gotoPage,"Go To...")
+        tabs.addTab(scanPage, "Vertical Scan")
 
         self.label = QLabel("Let's get started!")
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -85,10 +116,17 @@ class MainWidget(QMainWindow):
         self.toolbar.addAction(goStart_action)
 
         self.gotoButton.setStatusTip("Go to specified position")
-        self.gotoButton.statusTip(True)
+        
         self.gotoButton.clicked.connect(self.gotoPosition)
 
+        self.vertScanButton.setStatusTip("Start a Vertical Scan")
+        self.vertScanButton.clicked.connect(self.verticalScan)
+
         self.setStatusBar(self.statusBar())
+        
+        statusFont = self.statusBar().font()
+        statusFont.setPointSize(14)
+        self.statusBar().setFont(statusFont)
 
         # Exit QAction
         file_menu.addAction(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit),
@@ -133,6 +171,20 @@ class MainWidget(QMainWindow):
         stageC.gotoPosition(self.ser, pulsePos)
         asyncio.run(stageC.readyCheck(self.ser, axes))
         self.updatePosition()
+
+    def verticalScan(self):
+        """Scan in vertical direction a set distance with a specified number of steps"""
+        distance = self.distanceWidget.value()
+        steps = self.stepsWidget.value()
+        print("steps = " ,steps)
+        stepDistance = distance/steps
+        print("step Distance =",stepDistance)
+        stepPulses = -int(stepDistance * dist2pulse[2])
+
+        for i in range(steps):
+            stageC.moveRelative(self.ser,(0,0,stepPulses))
+            asyncio.run(stageC.readyCheck(self.ser, axes))
+            self.updatePosition()
 
     def buttonClicked(self):
         """Handle button click event"""
