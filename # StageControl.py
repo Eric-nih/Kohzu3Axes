@@ -21,7 +21,8 @@ axes = (1,2,3)
 dist2pulse = (4000,4000,500) # vertical stage value appears to be 500 from measurements.
 
 def conv2Pulse(Dist,D2P):
-    """Kohzu stages move a set number of pulses. This function converts a distance in mm to the number of pulses for each axis."""
+    """Kohzu stages move a set number of pulses. This function converts a distance in mm 
+    to the number of pulses for each axis."""
     if(isinstance(Dist,(list,tuple))):
         result = list()
         for i in range(len(Dist)):
@@ -180,11 +181,13 @@ class MainWidget(QMainWindow):
         stepDistance = distance/steps
         print("step Distance =",stepDistance)
         stepPulses = -int(stepDistance * dist2pulse[2])
+        self.statusBar().showMessage("Starting Scan") # This does not work EEB 7/9/2026
 
         for i in range(steps):
             stageC.moveRelative(self.ser,(0,0,stepPulses))
             asyncio.run(stageC.readyCheck(self.ser, axes))
             self.updatePosition()
+            asyncio.run(stageC.readyCheck(self.ser, axes))
 
     def buttonClicked(self):
         """Handle button click event"""
