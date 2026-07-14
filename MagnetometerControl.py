@@ -3,10 +3,12 @@
 import sys, serial
 import time, asyncio
 import stageCommands as stageC
+#from MPprepCommand import prepCommand as mpPrep
+import meterCommands as meterC
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QCheckBox, QPushButton, QToolBar, QHBoxLayout,
     QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox, QSpinBox, 
-    QTabWidget
+    QTabWidget, QFrame
 )
 from PySide6.QtGui import QIcon, QKeySequence, QAction, QFont
 from PySide6.QtCore import Qt, QTimer
@@ -20,7 +22,7 @@ axes = (1,2,3)
  
 dist2pulse = (4000,4000,500) # vertical stage value appears to be 500 from measurements.
 
-def conv2Pulse(Dist,D2P):
+def conv2Pulse(Dist,D2P) -> float | None:
     """Kohzu stages move a set number of pulses. This function converts a distance in mm 
     to the number of pulses for each axis."""
     if(isinstance(Dist,(list,tuple))):
@@ -41,9 +43,12 @@ class MainWidget(QMainWindow):
         self.setWindowTitle("Magnetic Field Measurement")
 
         # Initialize controller
-        self.ser = serial.Serial('com4', 38400,8,"N",1,timeout=1)
+        self.ser = serial.Serial('com6', 38400,8,"N",1,timeout=1)
         print("Opening Connection to controller")
         self.statusBar().showMessage("Connected to controller")
+
+        self.mpSer = serial.Serial('Com5',115200,8,"N",1,timeout=1)
+        print("Opening connection to meter")
 
         widget = QWidget()
         self.setCentralWidget(widget)
@@ -68,6 +73,9 @@ class MainWidget(QMainWindow):
         gotoPage.setLayout(gotoLayout)
         scanPage = QWidget(self)
         scanPage.setLayout(scanLayout)
+        meterPage = QWidget(self)
+        meterLayout = QFormLayout()
+        meterPage.setLayout(meterLayout)
 
         mainLayout.addWidget(tabs)
 
@@ -94,8 +102,19 @@ class MainWidget(QMainWindow):
         self.distanceWidget.setRange(0,100.0)
         self.stepsWidget.setRange(1,2000)
 
+        # Set up the form for the magnetic field meter
+        self.measureButton = QPushButton("Measure Field")
+        self.fieldBox = QLabel("reading")
+        self.fieldBox.setFrameShape(QFrame.Shape.Box)
+        self.fieldBox.setFrameShadow(QFrame.Shadow.Sunken)
+        
+        #self.fieldSpBox.setRange(-10000,10000)
+        meterLayout.addRow(self.measureButton)
+        meterLayout.addRow("MagneticField: ",self.fieldBox)
+
         tabs.addTab(gotoPage,"Go To...")
         tabs.addTab(scanPage, "Vertical Scan")
+        tabs.addTab(meterPage,"Magnetic Field")
 
         self.label = QLabel("Let's get started!")
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -123,6 +142,8 @@ class MainWidget(QMainWindow):
         self.vertScanButton.setStatusTip("Start a Vertical Scan")
         self.vertScanButton.clicked.connect(self.verticalScan)
 
+        self.measureButton.clicked.connect(self.meterButtonClicked)
+
         self.setStatusBar(self.statusBar())
         
         statusFont = self.statusBar().font()
@@ -132,6 +153,8 @@ class MainWidget(QMainWindow):
         # Exit QAction
         file_menu.addAction(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit),
                             "Exit", QKeySequence.StandardKey.Quit, self.close)
+        
+        self.label.setText(meterC.Identify(self.mpSer))
         
 
     # The following are slot functions that respond to GUI events.
@@ -151,7 +174,7 @@ class MainWidget(QMainWindow):
         asyncio.run(stageC.readyCheck(self.ser, axes))
         self.updatePosition()
 
-    def calculatePosition(self):
+    def calculatePosition(self) -> list[float, float, float]:
         """Calculate the current position of the stages in mm, returning a list"""
         Positions = [0.,0.,0.]
         for a in axes:
@@ -193,6 +216,11 @@ class MainWidget(QMainWindow):
         """Handle button click event"""
         print("Button clicked!")
         # You can add more functionality here as needed
+
+    def meterButtonClicked(self):
+        """Read Magnetic Field meter when button clicked"""
+        field = meterC.fieldMeasure(self.mpSer)
+        self.fieldBox.setText(f"{field:.4f}")
 
         
 if __name__ == "__main__":

@@ -22,6 +22,10 @@ multithreading, along with updating the GUI.
 from the magnetometer.  We may also want to store time and date
 
 - Add scanning in 3D.
+- add controls to change com ports for magnetic field meter and for stage controller
+- Add panel to change parameters of field meter
+- add display of field measurements
+- add plot of field measurements vs position
 
 
 Eric Bennett

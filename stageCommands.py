@@ -48,7 +48,7 @@ def moveRelative(ser,Dist):
         print(ser.readline().decode().strip())
     return
 
-def idleCheck(ser, a):
+def idleCheck(ser, a) -> bool:
     """Check if stage a is idle and ready for the next command."""
     command = "STR1/"
     command += str(a)
@@ -103,7 +103,7 @@ def stop(ser, a):
     return
 
 
-def readPos(ser, a):
+def readPos(ser, a) -> int:
     """Read the stage position, in pulses."""
     command = "RDP"
     command += str(a)
