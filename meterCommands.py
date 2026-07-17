@@ -9,3 +9,7 @@ def Identify(ser) -> str:
 def fieldMeasure(ser) -> float:
     ser.write(MPprep("MEAS:FLUX?"))
     return float(ser.readline().decode().strip())
+
+def getUnits(ser) -> str:
+    ser.write(MPprep("UNIT:FLUX?"))
+    return (ser.readline().decode().strip())

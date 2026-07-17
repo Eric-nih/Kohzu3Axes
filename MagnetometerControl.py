@@ -3,7 +3,7 @@
 import sys, serial
 import time, asyncio
 import stageCommands as stageC
-#from MPprepCommand import prepCommand as mpPrep
+from numDisplay import numDisplay
 import meterCommands as meterC
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QCheckBox, QPushButton, QToolBar, QHBoxLayout,
@@ -104,13 +104,14 @@ class MainWidget(QMainWindow):
 
         # Set up the form for the magnetic field meter
         self.measureButton = QPushButton("Measure Field")
-        self.fieldBox = QLabel("reading")
-        self.fieldBox.setFrameShape(QFrame.Shape.Box)
-        self.fieldBox.setFrameShadow(QFrame.Shadow.Sunken)
+        self.fieldNum = numDisplay()
+        self.unitsLabel = QLabel()
         
-        #self.fieldSpBox.setRange(-10000,10000)
         meterLayout.addRow(self.measureButton)
-        meterLayout.addRow("MagneticField: ",self.fieldBox)
+        measureLayout = QHBoxLayout()
+        measureLayout.addWidget(self.fieldNum)
+        measureLayout.addWidget(self.unitsLabel)
+        meterLayout.addRow("MagneticField: ",measureLayout)
 
         tabs.addTab(gotoPage,"Go To...")
         tabs.addTab(scanPage, "Vertical Scan")
@@ -220,7 +221,11 @@ class MainWidget(QMainWindow):
     def meterButtonClicked(self):
         """Read Magnetic Field meter when button clicked"""
         field = meterC.fieldMeasure(self.mpSer)
-        self.fieldBox.setText(f"{field:.4f}")
+        #self.fieldBox.setText(f"{field:.4f}")
+        self.fieldNum.setValue(field)
+        units = meterC.getUnits(self.mpSer)
+        #print("field Units: ",units)
+        self.unitsLabel.setText(units)
 
         
 if __name__ == "__main__":
