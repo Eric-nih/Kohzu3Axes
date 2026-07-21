@@ -8,7 +8,7 @@ import meterCommands as meterC
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QCheckBox, QPushButton, QToolBar, QHBoxLayout,
     QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox, QSpinBox, 
-    QTabWidget, QFrame
+    QTabWidget, QFrame, QGridLayout
 )
 from PySide6.QtGui import QIcon, QKeySequence, QAction, QFont
 from PySide6.QtCore import Qt, QTimer
@@ -117,10 +117,26 @@ class MainWidget(QMainWindow):
         tabs.addTab(scanPage, "Vertical Scan")
         tabs.addTab(meterPage,"Magnetic Field")
 
-        self.label = QLabel("Let's get started!")
-        self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.label.setStyleSheet("font-size: 24px;")
-        mainLayout.addWidget(self.label)
+        # set up central panel display latest positions and measurements
+        self.centralLayout = QGridLayout(self)
+
+        self.xPos = numDisplay()
+        self.yPos = numDisplay()
+        self.zPos = numDisplay()
+        self.fieldDisplay = numDisplay()
+        self.unitsLabel2 = QLabel()
+        self.centralLayout.addWidget(QLabel("X (mm)"),0,0)
+        self.centralLayout.addWidget(self.xPos,1,0)
+        self.centralLayout.addWidget(QLabel("Y (mm)"),0,1)
+        self.centralLayout.addWidget(self.yPos,1,1)
+        self.centralLayout.addWidget(QLabel("Z (mm)"),0,2)
+        self.centralLayout.addWidget(self.zPos,1,2)
+        self.centralLayout.addWidget(QLabel("magnetic field"),2,0)
+        self.centralLayout.addWidget(self.fieldDisplay,2,1)
+        self.centralLayout.addWidget(self.unitsLabel2,2,2)
+        centralWidget = QWidget(self)
+        centralWidget.setLayout(self.centralLayout)
+        mainLayout.addWidget(centralWidget)
 
         mainLayout.addLayout(graphLayout)
         
@@ -155,7 +171,7 @@ class MainWidget(QMainWindow):
         file_menu.addAction(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit),
                             "Exit", QKeySequence.StandardKey.Quit, self.close)
         
-        self.label.setText(meterC.Identify(self.mpSer))
+        #self.label.setText(meterC.Identify(self.mpSer))
         
 
     # The following are slot functions that respond to GUI events.
@@ -185,8 +201,11 @@ class MainWidget(QMainWindow):
     
     def updatePosition(self):
         """Update the label with the current position of the stages"""
-        self.label.setText("current position: " + str(self.calculatePosition()))
-        self.label.update()
+        #self.label.setText("current position: " + str(self.calculatePosition()))
+        position = self.calculatePosition()
+        self.xPos.setValue(position[0])
+        self.yPos.setValue(position[1])
+        self.zPos.setValue(position[2])
 
     def gotoPosition(self):
         """Move to a specified position in mm"""
@@ -211,6 +230,7 @@ class MainWidget(QMainWindow):
             stageC.moveRelative(self.ser,(0,0,stepPulses))
             asyncio.run(stageC.readyCheck(self.ser, axes))
             self.updatePosition()
+            self.updateMeasurement()
             asyncio.run(stageC.readyCheck(self.ser, axes))
 
     def buttonClicked(self):
@@ -223,9 +243,18 @@ class MainWidget(QMainWindow):
         field = meterC.fieldMeasure(self.mpSer)
         #self.fieldBox.setText(f"{field:.4f}")
         self.fieldNum.setValue(field)
+        self.fieldDisplay.setValue(field)
         units = meterC.getUnits(self.mpSer)
         #print("field Units: ",units)
         self.unitsLabel.setText(units)
+        self.updateMeasurement()
+
+    def updateMeasurement(self):
+        """Read Magnetic Field meter for scans"""
+        units = meterC.getUnits(self.mpSer)
+        field = meterC.fieldMeasure(self.mpSer)
+        self.unitsLabel2.setText(units)
+        self.fieldDisplay.setValue(field)
 
         
 if __name__ == "__main__":
