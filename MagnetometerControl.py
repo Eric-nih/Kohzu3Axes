@@ -1,4 +1,4 @@
-# Python GUI for controlling stages
+# Python GUI for controlling stages and magnetic field meter
 
 import sys, serial
 import time, asyncio
@@ -8,7 +8,7 @@ import meterCommands as meterC
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QCheckBox, QPushButton, QToolBar, QHBoxLayout,
     QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox, QSpinBox, 
-    QTabWidget, QFrame, QGridLayout
+    QTabWidget, QFrame, QGridLayout, QSpacerItem, QSizePolicy, QTableView
 )
 from PySide6.QtGui import QIcon, QKeySequence, QAction, QFont
 from PySide6.QtCore import Qt, QTimer
@@ -111,7 +111,7 @@ class MainWidget(QMainWindow):
         measureLayout = QHBoxLayout()
         measureLayout.addWidget(self.fieldNum)
         measureLayout.addWidget(self.unitsLabel)
-        meterLayout.addRow("MagneticField: ",measureLayout)
+        meterLayout.addRow("Magnetic Field: ",measureLayout)
 
         tabs.addTab(gotoPage,"Go To...")
         tabs.addTab(scanPage, "Vertical Scan")
@@ -125,15 +125,20 @@ class MainWidget(QMainWindow):
         self.zPos = numDisplay()
         self.fieldDisplay = numDisplay()
         self.unitsLabel2 = QLabel()
-        self.centralLayout.addWidget(QLabel("X (mm)"),0,0)
+        self.centralLayout.addWidget(QLabel("X (mm)",alignment=Qt.AlignHCenter),0,0)
         self.centralLayout.addWidget(self.xPos,1,0)
-        self.centralLayout.addWidget(QLabel("Y (mm)"),0,1)
+        self.centralLayout.addWidget(QLabel("Y (mm)",alignment=Qt.AlignHCenter),0,1)
         self.centralLayout.addWidget(self.yPos,1,1)
-        self.centralLayout.addWidget(QLabel("Z (mm)"),0,2)
+        self.centralLayout.addWidget(QLabel("Z (mm)",alignment=Qt.AlignHCenter),0,2)
         self.centralLayout.addWidget(self.zPos,1,2)
-        self.centralLayout.addWidget(QLabel("magnetic field"),2,0)
+        self.centralLayout.addWidget(QLabel("Magnetic Field",alignment=Qt.AlignRight|Qt.AlignVCenter),2,0)
         self.centralLayout.addWidget(self.fieldDisplay,2,1)
         self.centralLayout.addWidget(self.unitsLabel2,2,2)
+
+        for column in range(self.centralLayout.columnCount()):
+            self.centralLayout.setColumnStretch(column,1)
+        spacer = QSpacerItem(0,20,QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
+        self.centralLayout.addItem(spacer,3,0)
         centralWidget = QWidget(self)
         centralWidget.setLayout(self.centralLayout)
         mainLayout.addWidget(centralWidget)
