@@ -12,7 +12,7 @@ controller.  It is connected to the control computer by an RS-232 cable.
 
 ## Software
 A program written in Python 3 is used to control the setup.  Dependencies include
-PySide6, a Python version of Qt, pyserial
+PySide6 which is a Python version of Qt, pyserial
 
 ## TODO
 - It would be helpful if the current position is updated while running scans.  This will require
@@ -24,8 +24,10 @@ from the magnetometer.  We may also want to store time and date
 - Add scanning in 3D.
 - add controls to change com ports for magnetic field meter and for stage controller
 - Add panel to change parameters of field meter
-- add display of field measurements
 - add plot of field measurements vs position
+
+## DONE
+- added display of field measurments, 8/5/2026
 
 
 Eric Bennett

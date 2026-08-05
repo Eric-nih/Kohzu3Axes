@@ -78,7 +78,7 @@ async def wait4idle(ser, axes):
             # print("axis = ", axis)
             allIdle = allIdle and idleCheck(ser, axis)
 
-        print("allIdle = ", allIdle)
+        #print("allIdle = ", allIdle)
         if allIdle:
             break
 

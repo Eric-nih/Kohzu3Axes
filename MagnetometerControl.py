@@ -8,10 +8,12 @@ import meterCommands as meterC
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QCheckBox, QPushButton, QToolBar, QHBoxLayout,
     QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox, QSpinBox, 
-    QTabWidget, QFrame, QGridLayout, QSpacerItem, QSizePolicy, QTableView
+    QTabWidget, QFrame, QGridLayout, QSpacerItem, QSizePolicy, QTableView,
+    QHeaderView
 )
 from PySide6.QtGui import QIcon, QKeySequence, QAction, QFont
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt, QTimer,QAbstractTableModel
+import pandas as pd
 
 # Axes in use
 axes = (1,2,3)
@@ -35,7 +37,33 @@ def conv2Pulse(Dist,D2P) -> float | None:
     else:
         print("ERROR: unkown data Type")
         return None
-              
+
+class TableModel(QAbstractTableModel):
+
+    def __init__(self, data):
+        super().__init__()
+        self._data = data
+
+    def data(self, index, role):
+        if role == Qt.DisplayRole:
+            value = self._data.iloc[index.row(), index.column()]
+            return str(value)
+
+    def rowCount(self, index):
+        return self._data.shape[0]
+
+    def columnCount(self, index):
+        return self._data.shape[1]
+
+    def headerData(self, section, orientation, role):
+        # section is the index of the column/row.
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                return str(self._data.columns[section])
+
+            if orientation == Qt.Vertical:
+                return str(self._data.index[section])
+
 
 class MainWidget(QMainWindow):
     def __init__(self):
@@ -52,7 +80,7 @@ class MainWidget(QMainWindow):
 
         widget = QWidget()
         self.setCentralWidget(widget)
-
+        
         # Menu
         self.menu = self.menuBar()
         file_menu = self.menu.addMenu("File")
@@ -77,7 +105,7 @@ class MainWidget(QMainWindow):
         meterLayout = QFormLayout()
         meterPage.setLayout(meterLayout)
 
-        mainLayout.addWidget(tabs)
+        mainLayout.addWidget(tabs,1)
 
         # set up the form to go to a position
         self.gotoButton = QPushButton("Go to position")
@@ -118,35 +146,44 @@ class MainWidget(QMainWindow):
         tabs.addTab(meterPage,"Magnetic Field")
 
         # set up central panel display latest positions and measurements
-        self.centralLayout = QGridLayout(self)
+        self.centerLayout = QGridLayout(self)
 
         self.xPos = numDisplay()
         self.yPos = numDisplay()
         self.zPos = numDisplay()
         self.fieldDisplay = numDisplay()
         self.unitsLabel2 = QLabel()
-        self.centralLayout.addWidget(QLabel("X (mm)",alignment=Qt.AlignHCenter),0,0)
-        self.centralLayout.addWidget(self.xPos,1,0)
-        self.centralLayout.addWidget(QLabel("Y (mm)",alignment=Qt.AlignHCenter),0,1)
-        self.centralLayout.addWidget(self.yPos,1,1)
-        self.centralLayout.addWidget(QLabel("Z (mm)",alignment=Qt.AlignHCenter),0,2)
-        self.centralLayout.addWidget(self.zPos,1,2)
-        self.centralLayout.addWidget(QLabel("Magnetic Field",alignment=Qt.AlignRight|Qt.AlignVCenter),2,0)
-        self.centralLayout.addWidget(self.fieldDisplay,2,1)
-        self.centralLayout.addWidget(self.unitsLabel2,2,2)
+        self.centerLayout.addWidget(QLabel("X (mm)",alignment=Qt.AlignHCenter),0,0)
+        self.centerLayout.addWidget(self.xPos,1,0)
+        self.centerLayout.addWidget(QLabel("Y (mm)",alignment=Qt.AlignHCenter),0,1)
+        self.centerLayout.addWidget(self.yPos,1,1)
+        self.centerLayout.addWidget(QLabel("Z (mm)",alignment=Qt.AlignHCenter),0,2)
+        self.centerLayout.addWidget(self.zPos,1,2)
+        self.centerLayout.addWidget(QLabel("Magnetic Field",alignment=Qt.AlignRight|Qt.AlignVCenter),2,0)
+        self.centerLayout.addWidget(self.fieldDisplay,2,1)
+        self.centerLayout.addWidget(self.unitsLabel2,2,2)
 
-        for column in range(self.centralLayout.columnCount()):
-            self.centralLayout.setColumnStretch(column,1)
+        for column in range(self.centerLayout.columnCount()):
+            self.centerLayout.setColumnStretch(column,1)
+
         spacer = QSpacerItem(0,20,QSizePolicy.Policy.Expanding,QSizePolicy.Policy.Expanding)
-        self.centralLayout.addItem(spacer,3,0)
-        centralWidget = QWidget(self)
-        centralWidget.setLayout(self.centralLayout)
-        mainLayout.addWidget(centralWidget)
+        self.centerLayout.addItem(spacer,3,0)
+        centerWidget = QWidget(self)
+        centerWidget.setLayout(self.centerLayout)
+        mainLayout.addWidget(centerWidget,1)
 
-        mainLayout.addLayout(graphLayout)
+        # Set up and display table of measurements. I will eventually include
+        # a plot option
+
+        self.dataTable = QTableView()
+        graphLayout.addWidget(self.dataTable)
+        graphWidget = QWidget()
+        graphWidget.setLayout(graphLayout)
+        mainLayout.addWidget(graphWidget,2)
+        
         
         widget.setLayout(mainLayout)
-
+        #print("set the main layout")
         home_action = QAction("Home all", self)
         home_action.setStatusTip("Homing all stages")
         home_action.triggered.connect(self.homeAll)
@@ -177,6 +214,16 @@ class MainWidget(QMainWindow):
                             "Exit", QKeySequence.StandardKey.Quit, self.close)
         
         #self.label.setText(meterC.Identify(self.mpSer))
+        # set up data frame for scans
+        currentTime = time.asctime()
+        self.data = pd.DataFrame([
+            [currentTime, 0.0,0.0,0.0,0.0,"units"],
+                   
+                ], columns = ['Time','X', 'Y', 'Z','magnetic field', 'units' ])
+        
+        self.model = TableModel(self.data)
+        self.dataTable.setModel(self.model)
+        self.dataTable.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         
 
     # The following are slot functions that respond to GUI events.
@@ -216,7 +263,7 @@ class MainWidget(QMainWindow):
         """Move to a specified position in mm"""
         position = (self.gotoX.value(), self.gotoY.value(), self.gotoZ.value())
         pulsePos = conv2Pulse(position,dist2pulse)
-        print("Pulse position: ", pulsePos)
+        #print("Pulse position: ", pulsePos)
         stageC.gotoPosition(self.ser, pulsePos)
         asyncio.run(stageC.readyCheck(self.ser, axes))
         self.updatePosition()
@@ -231,11 +278,42 @@ class MainWidget(QMainWindow):
         stepPulses = -int(stepDistance * dist2pulse[2])
         self.statusBar().showMessage("Starting Scan") # This does not work EEB 7/9/2026
 
-        for i in range(steps):
+        # setup data table parameters
+        dtypes = {
+            'time': 'string',
+            'X': 'float64',
+            'Y': 'float64',
+            'Z': 'float64',
+            'Field': 'float64',
+            'Units': 'string'
+        }
+
+        self.data = pd.DataFrame(index=range(steps+1),columns=dtypes.keys()).astype(dtypes)
+        self.model = TableModel(self.data)
+        self.dataTable.setModel(self.model)
+
+        # we need to get initial data before moving stages
+        position = self.calculatePosition()
+        currentTime = time.asctime()
+        units = meterC.getUnits(self.mpSer)
+        field = meterC.fieldMeasure(self.mpSer)
+        dataList = [currentTime,position[0],position[1],position[2],field,units]
+        self.data.loc[0] = dataList
+
+        for i in range(1,steps+1):
             stageC.moveRelative(self.ser,(0,0,stepPulses))
             asyncio.run(stageC.readyCheck(self.ser, axes))
-            self.updatePosition()
-            self.updateMeasurement()
+            #self.updatePosition()
+            #self.updateMeasurement()
+            position = self.calculatePosition()
+            currentTime = time.asctime()
+            units = meterC.getUnits(self.mpSer)
+            field = meterC.fieldMeasure(self.mpSer)
+            dataList = [currentTime,position[0],position[1],position[2],field,units]
+            self.data.loc[i] = dataList
+            self.dataTable.update()
+            self.dataTable.resizeColumnsToContents()
+
             asyncio.run(stageC.readyCheck(self.ser, axes))
 
     def buttonClicked(self):
@@ -246,7 +324,7 @@ class MainWidget(QMainWindow):
     def meterButtonClicked(self):
         """Read Magnetic Field meter when button clicked"""
         field = meterC.fieldMeasure(self.mpSer)
-        #self.fieldBox.setText(f"{field:.4f}")
+        
         self.fieldNum.setValue(field)
         self.fieldDisplay.setValue(field)
         units = meterC.getUnits(self.mpSer)
