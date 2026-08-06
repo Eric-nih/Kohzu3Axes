@@ -18,9 +18,6 @@ PySide6 which is a Python version of Qt, pyserial
 - It would be helpful if the current position is updated while running scans.  This will require
 multithreading, along with updating the GUI.
 
-- We need a way to store data.  This should include the position of all three axes and the reading 
-from the magnetometer.  We may also want to store time and date
-
 - Add scanning in 3D.
 - add controls to change com ports for magnetic field meter and for stage controller
 - Add panel to change parameters of field meter
@@ -28,7 +25,7 @@ from the magnetometer.  We may also want to store time and date
 
 ## DONE
 - added display of field measurments, 8/5/2026
-
+- added data storage of time, position, field measurement, and field units, 8/6/2026
 
 Eric Bennett
 *Research Engineer,

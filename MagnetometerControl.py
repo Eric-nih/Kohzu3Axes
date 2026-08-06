@@ -6,15 +6,14 @@ import stageCommands as stageC
 from numDisplay import numDisplay
 import meterCommands as meterC
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QLabel, QCheckBox, QPushButton, QToolBar, QHBoxLayout,
+    QApplication, QMainWindow, QLabel, QPushButton, QToolBar, QHBoxLayout,
     QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox, QSpinBox, 
-    QTabWidget, QFrame, QGridLayout, QSpacerItem, QSizePolicy, QTableView,
-    QHeaderView
+    QTabWidget, QGridLayout, QSpacerItem, QSizePolicy, QTableView,
+    QHeaderView, QFileDialog
 )
-from PySide6.QtGui import QIcon, QKeySequence, QAction, QFont
+from PySide6.QtGui import QIcon, QKeySequence, QAction
 from PySide6.QtCore import Qt, QTimer,QAbstractTableModel
-import pandas as pd
-
+from pandas import DataFrame
 # Axes in use
 axes = (1,2,3)
 
@@ -39,7 +38,7 @@ def conv2Pulse(Dist,D2P) -> float | None:
         return None
 
 class TableModel(QAbstractTableModel):
-
+    """This class sets up a view used by the GUI to display a table model"""
     def __init__(self, data):
         super().__init__()
         self._data = data
@@ -105,7 +104,7 @@ class MainWidget(QMainWindow):
         meterLayout = QFormLayout()
         meterPage.setLayout(meterLayout)
 
-        mainLayout.addWidget(tabs,1)
+        mainLayout.addWidget(tabs,2)
 
         # set up the form to go to a position
         self.gotoButton = QPushButton("Go to position")
@@ -179,7 +178,7 @@ class MainWidget(QMainWindow):
         graphLayout.addWidget(self.dataTable)
         graphWidget = QWidget()
         graphWidget.setLayout(graphLayout)
-        mainLayout.addWidget(graphWidget,2)
+        mainLayout.addWidget(graphWidget,3)
         
         
         widget.setLayout(mainLayout)
@@ -193,6 +192,11 @@ class MainWidget(QMainWindow):
         goStart_action.setStatusTip("Going to starting position for scanning")
         goStart_action.triggered.connect(self.goStart)
         self.toolbar.addAction(goStart_action)
+
+        save_action = QAction("Save data", self)
+        save_action.setStatusTip("Save data from a scan to a CSV file")
+        save_action.triggered.connect(self.saveData)
+        self.toolbar.addAction(save_action)
 
         self.gotoButton.setStatusTip("Go to specified position")
         
@@ -216,7 +220,7 @@ class MainWidget(QMainWindow):
         #self.label.setText(meterC.Identify(self.mpSer))
         # set up data frame for scans
         currentTime = time.asctime()
-        self.data = pd.DataFrame([
+        self.data = DataFrame([
             [currentTime, 0.0,0.0,0.0,0.0,"units"],
                    
                 ], columns = ['Time','X', 'Y', 'Z','magnetic field', 'units' ])
@@ -288,7 +292,7 @@ class MainWidget(QMainWindow):
             'Units': 'string'
         }
 
-        self.data = pd.DataFrame(index=range(steps+1),columns=dtypes.keys()).astype(dtypes)
+        self.data = DataFrame(index=range(steps+1),columns=dtypes.keys()).astype(dtypes)
         self.model = TableModel(self.data)
         self.dataTable.setModel(self.model)
 
@@ -331,6 +335,7 @@ class MainWidget(QMainWindow):
         #print("field Units: ",units)
         self.unitsLabel.setText(units)
         self.updateMeasurement()
+        self.updatePosition()
 
     def updateMeasurement(self):
         """Read Magnetic Field meter for scans"""
@@ -338,6 +343,16 @@ class MainWidget(QMainWindow):
         field = meterC.fieldMeasure(self.mpSer)
         self.unitsLabel2.setText(units)
         self.fieldDisplay.setValue(field)
+
+    def saveData(self):
+        """Save data collected from a scan to a CSV file"""
+        # open a file dialog
+        filename = QFileDialog.getSaveFileName(self,caption="Save data to: ",filter="CSV file (*.csv)")[0]
+        print("File = ",filename)
+        #print(type(filename))
+        self.data.to_csv(filename)
+        print("File was saved")
+
 
         
 if __name__ == "__main__":
