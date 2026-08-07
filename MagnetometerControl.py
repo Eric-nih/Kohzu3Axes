@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QPushButton, QToolBar, QHBoxLayout,
     QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox, QSpinBox, 
     QTabWidget, QGridLayout, QSpacerItem, QSizePolicy, QTableView,
-    QHeaderView, QFileDialog
+    QHeaderView, QFileDialog, QComboBox
 )
 from PySide6.QtGui import QIcon, QKeySequence, QAction
 from PySide6.QtCore import Qt, QTimer,QAbstractTableModel
@@ -131,10 +131,14 @@ class MainWidget(QMainWindow):
 
         # Set up the form for the magnetic field meter
         self.measureButton = QPushButton("Measure Field")
+        self.setUnits = QComboBox()
         self.fieldNum = numDisplay()
         self.unitsLabel = QLabel()
+
+        self.setUnits.addItems(["Gauss","Tesla","Oersted","A/cm"])
         
         meterLayout.addRow(self.measureButton)
+        meterLayout.addRow("Field Units:",self.setUnits)
         measureLayout = QHBoxLayout()
         measureLayout.addWidget(self.fieldNum)
         measureLayout.addWidget(self.unitsLabel)
@@ -206,6 +210,7 @@ class MainWidget(QMainWindow):
         self.vertScanButton.clicked.connect(self.verticalScan)
 
         self.measureButton.clicked.connect(self.meterButtonClicked)
+        self.setUnits.currentIndexChanged.connect(self.chooseUnits)
 
         self.setStatusBar(self.statusBar())
         
@@ -271,6 +276,7 @@ class MainWidget(QMainWindow):
         stageC.gotoPosition(self.ser, pulsePos)
         asyncio.run(stageC.readyCheck(self.ser, axes))
         self.updatePosition()
+        self.updateMeasurement()
 
     def verticalScan(self):
         """Scan in vertical direction a set distance with a specified number of steps"""
@@ -352,6 +358,19 @@ class MainWidget(QMainWindow):
         #print(type(filename))
         self.data.to_csv(filename)
         print("File was saved")
+
+    def chooseUnits(self,index):
+        """Select the units to measure magnetic field in"""
+        # order of units: ["Gauss","Tesla","Oersted","A/cm"]
+        match index:
+            case 0:
+                meterC.setUnits(self.mpSer,"GAUS")
+            case 1:
+                meterC.setUnits(self.mpSer,"TESL")
+            case 2:
+                meterC.setUnits(self.mpSer,"OERS")
+            case 3:
+                meterC.setUnits(self.mpSer,"AM")
 
 
         

@@ -13,3 +13,9 @@ def fieldMeasure(ser) -> float:
 def getUnits(ser) -> str:
     ser.write(MPprep("UNIT:FLUX?"))
     return (ser.readline().decode().strip())
+
+def setUnits(ser,units) -> str:
+    """Set the units that field is measured in.
+    must be 'AM','TESL','GAUS' or 'OERS'"""
+    ser.write(MPprep("UNIT:FLUX "+units))
+    return (ser.readline().decode().strip())

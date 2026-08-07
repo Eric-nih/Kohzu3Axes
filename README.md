@@ -20,12 +20,12 @@ multithreading, along with updating the GUI.
 
 - Add scanning in 3D.
 - add controls to change com ports for magnetic field meter and for stage controller
-- Add panel to change parameters of field meter
 - add plot of field measurements vs position
 
 ## DONE
 - added display of field measurments, 8/5/2026
 - added data storage of time, position, field measurement, and field units, 8/6/2026
+- added control to change magnetic field units, 8/7/2026
 
 Eric Bennett
 *Research Engineer,
