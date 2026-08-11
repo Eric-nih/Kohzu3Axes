@@ -68,6 +68,8 @@ class MainWidget(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Magnetic Field Measurement")
+        self.setMinimumSize(900,200)
+        self.setWindowIcon(QIcon("magnet-arrow.png"))
 
         # Initialize controller
         self.ser = serial.Serial('com6', 38400,8,"N",1,timeout=1)
@@ -103,6 +105,9 @@ class MainWidget(QMainWindow):
         meterPage = QWidget(self)
         meterLayout = QFormLayout()
         meterPage.setLayout(meterLayout)
+        scan3DPage = QWidget(self)
+        scan3DLayout = QFormLayout()
+        scan3DPage.setLayout(scan3DLayout)
 
         mainLayout.addWidget(tabs,2)
 
@@ -129,6 +134,25 @@ class MainWidget(QMainWindow):
         self.distanceWidget.setRange(0,100.0)
         self.stepsWidget.setRange(1,2000)
 
+        # Set up the form for a 3D scan
+        self.Scan3DButton = QPushButton("Start a 3D scan")
+        self.xDistWidget = QDoubleSpinBox()
+        self.yDistWidget = QDoubleSpinBox()
+        self.zDistWidget = QDoubleSpinBox()
+        self.xStepsWidget = QSpinBox()
+        self.yStepsWidget = QSpinBox()
+        self.zStepsWidget = QSpinBox()
+        scan3DLayout.addRow(self.Scan3DButton)
+        scan3DLayout.addRow("X Scan Distance",self.xDistWidget)
+        scan3DLayout.addRow("X steps",self.xStepsWidget)
+        scan3DLayout.addRow("Y Scan Distance",self.yDistWidget)
+        scan3DLayout.addRow("Y steps",self.yStepsWidget)
+        scan3DLayout.addRow("Z Scan Distance",self.zDistWidget)
+        scan3DLayout.addRow("Z steps",self.zStepsWidget)
+        self.zDistWidget.setRange(0,100.0)
+        self.xDistWidget.setRange(0,25.0)
+        self.yDistWidget.setRange(0,25.0)
+
         # Set up the form for the magnetic field meter
         self.measureButton = QPushButton("Measure Field")
         self.setUnits = QComboBox()
@@ -145,11 +169,12 @@ class MainWidget(QMainWindow):
         meterLayout.addRow("Magnetic Field: ",measureLayout)
 
         tabs.addTab(gotoPage,"Go To...")
-        tabs.addTab(scanPage, "Vertical Scan")
         tabs.addTab(meterPage,"Magnetic Field")
-
+        tabs.addTab(scanPage, "Vertical Scan")
+        tabs.addTab(scan3DPage, "3D Scan")
+   
         # set up central panel display latest positions and measurements
-        self.centerLayout = QGridLayout(self)
+        self.centerLayout = QGridLayout()
 
         self.xPos = numDisplay()
         self.yPos = numDisplay()
@@ -184,7 +209,6 @@ class MainWidget(QMainWindow):
         graphWidget.setLayout(graphLayout)
         mainLayout.addWidget(graphWidget,3)
         
-        
         widget.setLayout(mainLayout)
         #print("set the main layout")
         home_action = QAction("Home all", self)
@@ -208,6 +232,9 @@ class MainWidget(QMainWindow):
 
         self.vertScanButton.setStatusTip("Start a Vertical Scan")
         self.vertScanButton.clicked.connect(self.verticalScan)
+
+        self.Scan3DButton.clicked.connect(self.scan3D)
+        self.Scan3DButton.setStatusTip("Start a 3D scan")
 
         self.measureButton.clicked.connect(self.meterButtonClicked)
         self.setUnits.currentIndexChanged.connect(self.chooseUnits)
@@ -325,6 +352,38 @@ class MainWidget(QMainWindow):
             self.dataTable.resizeColumnsToContents()
 
             asyncio.run(stageC.readyCheck(self.ser, axes))
+
+    def scan3D(self):
+        """Scan magnetic field in 3 dimensions (x,y,z)"""
+        xDistance = self.xDistWidget.value()
+        xSteps = self.xStepsWidget.value()
+        yDistance = self.yDistWidget.value()
+        ySteps = self.yStepsWidget.value()
+        zDistance = self.zDistWidget.value()
+        zSteps = self.zStepsWidget.value()
+        
+        xStepDistance = xDistance/xSteps
+        yStepDistance = yDistance/ySteps
+        zStepDistance = zDistance/zSteps
+        
+        zStepPulses = -int(zStepDistance * dist2pulse[2]) # where is this used?
+        self.statusBar().showMessage("Starting Scan") # This does not work EEB 7/9/2026
+
+        # setup data table parameters
+        dtypes = {
+            'time': 'string',
+            'X': 'float64',
+            'Y': 'float64',
+            'Z': 'float64',
+            'Field': 'float64',
+            'Units': 'string'
+        }
+
+        self.data = DataFrame(index=range((xSteps+1)*(ySteps+1)*(zSteps+1)),
+                              columns=dtypes.keys()).astype(dtypes)
+        self.model = TableModel(self.data)
+        self.dataTable.setModel(self.model)
+
 
     def buttonClicked(self):
         """Handle button click event"""

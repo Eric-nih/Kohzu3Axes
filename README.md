@@ -26,6 +26,7 @@ multithreading, along with updating the GUI.
 - added display of field measurments, 8/5/2026
 - added data storage of time, position, field measurement, and field units, 8/6/2026
 - added control to change magnetic field units, 8/7/2026
+- added powershell script file and shortcut on desktop
 
 Eric Bennett
 *Research Engineer,
