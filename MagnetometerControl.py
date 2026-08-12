@@ -69,7 +69,7 @@ class MainWidget(QMainWindow):
         super().__init__()
         self.setWindowTitle("Magnetic Field Measurement")
         self.setMinimumSize(900,200)
-        self.setWindowIcon(QIcon("magnet-arrow.png"))
+        self.setWindowIcon(QIcon("resources\\magnet--arrow.png"))
 
         # Initialize controller
         self.ser = serial.Serial('com6', 38400,8,"N",1,timeout=1)
@@ -136,22 +136,34 @@ class MainWidget(QMainWindow):
 
         # Set up the form for a 3D scan
         self.Scan3DButton = QPushButton("Start a 3D scan")
-        self.xDistWidget = QDoubleSpinBox()
-        self.yDistWidget = QDoubleSpinBox()
-        self.zDistWidget = QDoubleSpinBox()
-        self.xStepsWidget = QSpinBox()
-        self.yStepsWidget = QSpinBox()
-        self.zStepsWidget = QSpinBox()
+        self.xStartWidget = QDoubleSpinBox() # x position to start from
+        self.yStartWidget = QDoubleSpinBox() # y position to start from
+        self.zStartWidget = QDoubleSpinBox() # z position to start from
+        self.xDistWidget = QDoubleSpinBox() # x distance to scan
+        self.yDistWidget = QDoubleSpinBox() # y distance to scan
+        self.zDistWidget = QDoubleSpinBox() # z distance to scan
+        self.xStepsWidget = QSpinBox() # how many points in x
+        self.yStepsWidget = QSpinBox() # how many points in y
+        self.zStepsWidget = QSpinBox() # how many points in z
         scan3DLayout.addRow(self.Scan3DButton)
+        scan3DLayout.addRow("Start position in x",self.xStartWidget)
         scan3DLayout.addRow("X Scan Distance",self.xDistWidget)
         scan3DLayout.addRow("X steps",self.xStepsWidget)
+        scan3DLayout.addRow("Start position in y", self.yStartWidget)
         scan3DLayout.addRow("Y Scan Distance",self.yDistWidget)
         scan3DLayout.addRow("Y steps",self.yStepsWidget)
+        scan3DLayout.addRow("Start position in z", self.zStartWidget)
         scan3DLayout.addRow("Z Scan Distance",self.zDistWidget)
         scan3DLayout.addRow("Z steps",self.zStepsWidget)
         self.zDistWidget.setRange(0,100.0)
         self.xDistWidget.setRange(0,25.0)
         self.yDistWidget.setRange(0,25.0)
+        self.xStartWidget.setRange(-12.5,12.5)
+        self.yStartWidget.setRange(-12.5,12.5)
+        self.zStartWidget.setRange(-50.0,50.50)
+        self.xStartWidget.setValue(-12.5)
+        self.yStartWidget.setValue(-12.5)
+        self.zStartWidget.setValue(50.0)
 
         # Set up the form for the magnetic field meter
         self.measureButton = QPushButton("Measure Field")
@@ -355,6 +367,7 @@ class MainWidget(QMainWindow):
 
     def scan3D(self):
         """Scan magnetic field in 3 dimensions (x,y,z)"""
+        # I need starting position as well
         xDistance = self.xDistWidget.value()
         xSteps = self.xStepsWidget.value()
         yDistance = self.yDistWidget.value()
@@ -366,7 +379,9 @@ class MainWidget(QMainWindow):
         yStepDistance = yDistance/ySteps
         zStepDistance = zDistance/zSteps
         
-        zStepPulses = -int(zStepDistance * dist2pulse[2]) # where is this used?
+        zStepPulses = -int(zStepDistance * dist2pulse[2]) # number of pulses per step
+        xStepPulses = int(xStepDistance * dist2pulse[0])
+        yStepPulses = int(yStepDistance * dist2pulse[1])
         self.statusBar().showMessage("Starting Scan") # This does not work EEB 7/9/2026
 
         # setup data table parameters
@@ -383,6 +398,30 @@ class MainWidget(QMainWindow):
                               columns=dtypes.keys()).astype(dtypes)
         self.model = TableModel(self.data)
         self.dataTable.setModel(self.model)
+
+        for z in range(0,zSteps+1):
+            stageC.gotoPosition(self.ser,(0,0,z*zStepPulses))
+
+            for x in range(0,xSteps + 1):
+                stageC.gotoPosition(self.ser,(x*xStepPulses,0,z*zStepPulses))
+
+                for y in range(0,ySteps + 1):
+                    stageC.gotoPosition(self.ser,(x*xStepPulses,y*yStepPulses,z*zStepPulses))
+
+                    asyncio.run(stageC.readyCheck(self.ser, axes))
+                    #self.updatePosition()
+                    #self.updateMeasurement()
+                    position = self.calculatePosition()
+                    currentTime = time.asctime()
+                    units = meterC.getUnits(self.mpSer)
+                    field = meterC.fieldMeasure(self.mpSer)
+                    dataList = [currentTime,position[0],position[1],position[2],field,units]
+                    index = x + y*(xSteps+1)+ z*(xSteps+1)*(ySteps+1)
+                    self.data.loc[index] = dataList
+                    self.dataTable.update()
+                    self.dataTable.resizeColumnsToContents()
+
+            asyncio.run(stageC.readyCheck(self.ser, axes))
 
 
     def buttonClicked(self):
