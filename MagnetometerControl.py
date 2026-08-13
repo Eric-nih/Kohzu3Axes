@@ -368,10 +368,13 @@ class MainWidget(QMainWindow):
     def scan3D(self):
         """Scan magnetic field in 3 dimensions (x,y,z)"""
         # I need starting position as well
+        xStart = self.xStartWidget.value()
         xDistance = self.xDistWidget.value()
         xSteps = self.xStepsWidget.value()
+        yStart = self.yStartWidget.value()
         yDistance = self.yDistWidget.value()
         ySteps = self.yStepsWidget.value()
+        zStart = self.zStartWidget.value()
         zDistance = self.zDistWidget.value()
         zSteps = self.zStepsWidget.value()
         
@@ -379,9 +382,6 @@ class MainWidget(QMainWindow):
         yStepDistance = yDistance/ySteps
         zStepDistance = zDistance/zSteps
         
-        zStepPulses = -int(zStepDistance * dist2pulse[2]) # number of pulses per step
-        xStepPulses = int(xStepDistance * dist2pulse[0])
-        yStepPulses = int(yStepDistance * dist2pulse[1])
         self.statusBar().showMessage("Starting Scan") # This does not work EEB 7/9/2026
 
         # setup data table parameters
@@ -400,13 +400,19 @@ class MainWidget(QMainWindow):
         self.dataTable.setModel(self.model)
 
         for z in range(0,zSteps+1):
-            stageC.gotoPosition(self.ser,(0,0,z*zStepPulses))
+            newPos = conv2Pulse((xStart,yStart,zStart+z*zStepDistance),dist2pulse)
+            stageC.gotoPosition(self.ser,newPos)
+            print((xStart,yStart,zStart-z*zStepDistance))
 
             for x in range(0,xSteps + 1):
-                stageC.gotoPosition(self.ser,(x*xStepPulses,0,z*zStepPulses))
+                newPos = conv2Pulse((xStart+x*xStepDistance,yStart,zStart-z*zStepDistance),dist2pulse)
+                stageC.gotoPosition(self.ser,newPos)
+                print((xStart+x*xStepDistance,yStart,zStart+z*zStepDistance))
 
                 for y in range(0,ySteps + 1):
-                    stageC.gotoPosition(self.ser,(x*xStepPulses,y*yStepPulses,z*zStepPulses))
+                    newPos = conv2Pulse((xStart+x*xStepDistance,yStart+y*yStepDistance,
+                                                  zStart-z*zStepDistance),dist2pulse)
+                    stageC.gotoPosition(self.ser,newPos)
 
                     asyncio.run(stageC.readyCheck(self.ser, axes))
                     #self.updatePosition()
