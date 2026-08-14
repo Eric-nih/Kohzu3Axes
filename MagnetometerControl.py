@@ -1,7 +1,8 @@
 # Python GUI for controlling stages and magnetic field meter
 
 import sys, serial
-import time, asyncio
+import time
+#import asyncio
 import stageCommands as stageC
 from numDisplay import numDisplay
 import meterCommands as meterC
@@ -267,7 +268,7 @@ class MainWidget(QMainWindow):
         self.data = DataFrame([
             [currentTime, 0.0,0.0,0.0,0.0,"units"],
                    
-                ], columns = ['Time','X', 'Y', 'Z','magnetic field', 'units' ])
+                ], columns = ['Time','X', 'Y', 'Z','field', 'units' ])
         
         self.model = TableModel(self.data)
         self.dataTable.setModel(self.model)
@@ -279,7 +280,7 @@ class MainWidget(QMainWindow):
     def homeAll(self):
         """Send all stages to home position"""
         stageC.homeAll(self.ser,axes)
-        asyncio.run(stageC.readyCheck(self.ser, axes))
+        # asyncio.run(stageC.readyCheck(self.ser, axes))
         print("All stages homed.")
         self.updatePosition()
 
@@ -288,7 +289,7 @@ class MainWidget(QMainWindow):
         startPos = (0.,0.,50.)
         pulsePos = conv2Pulse(startPos,dist2pulse)
         stageC.gotoPosition(self.ser, pulsePos)
-        asyncio.run(stageC.readyCheck(self.ser, axes))
+        # asyncio.run(stageC.readyCheck(self.ser, axes))
         self.updatePosition()
 
     def calculatePosition(self) -> list[float, float, float]:
@@ -313,7 +314,7 @@ class MainWidget(QMainWindow):
         pulsePos = conv2Pulse(position,dist2pulse)
         #print("Pulse position: ", pulsePos)
         stageC.gotoPosition(self.ser, pulsePos)
-        asyncio.run(stageC.readyCheck(self.ser, axes))
+        # asyncio.run(stageC.readyCheck(self.ser, axes))
         self.updatePosition()
         self.updateMeasurement()
 
@@ -351,7 +352,7 @@ class MainWidget(QMainWindow):
 
         for i in range(1,steps+1):
             stageC.moveRelative(self.ser,(0,0,stepPulses))
-            asyncio.run(stageC.readyCheck(self.ser, axes))
+            # asyncio.run(stageC.readyCheck(self.ser, axes))
             #self.updatePosition()
             #self.updateMeasurement()
             position = self.calculatePosition()
@@ -363,7 +364,7 @@ class MainWidget(QMainWindow):
             self.dataTable.update()
             self.dataTable.resizeColumnsToContents()
 
-            asyncio.run(stageC.readyCheck(self.ser, axes))
+            # asyncio.run(stageC.readyCheck(self.ser, axes))
 
     def scan3D(self):
         """Scan magnetic field in 3 dimensions (x,y,z)"""
@@ -414,7 +415,7 @@ class MainWidget(QMainWindow):
                                                   zStart-z*zStepDistance),dist2pulse)
                     stageC.gotoPosition(self.ser,newPos)
 
-                    asyncio.run(stageC.readyCheck(self.ser, axes))
+                    # asyncio.run(stageC.readyCheck(self.ser, axes))
                     #self.updatePosition()
                     #self.updateMeasurement()
                     position = self.calculatePosition()
@@ -427,7 +428,7 @@ class MainWidget(QMainWindow):
                     self.dataTable.update()
                     self.dataTable.resizeColumnsToContents()
 
-            asyncio.run(stageC.readyCheck(self.ser, axes))
+            # asyncio.run(stageC.readyCheck(self.ser, axes))
 
 
     def buttonClicked(self):
