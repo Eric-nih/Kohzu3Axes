@@ -2,7 +2,7 @@
 
 import sys, serial
 import time
-#import asyncio
+
 import stageCommands as stageC
 from numDisplay import numDisplay
 import meterCommands as meterC
@@ -10,10 +10,10 @@ from PySide6.QtWidgets import (
     QApplication, QMainWindow, QLabel, QPushButton, QToolBar, QHBoxLayout,
     QFormLayout,QVBoxLayout, QWidget, QPushButton, QDoubleSpinBox, QSpinBox, 
     QTabWidget, QGridLayout, QSpacerItem, QSizePolicy, QTableView,
-    QHeaderView, QFileDialog, QComboBox, QTableWidgetItem
+    QHeaderView, QFileDialog, QComboBox
 )
 from PySide6.QtGui import QIcon, QKeySequence, QAction
-from PySide6.QtCore import (Qt, QTimer,QAbstractTableModel, QThreadPool,QRunnable,
+from PySide6.QtCore import (Qt, QAbstractTableModel, QThreadPool,QRunnable,
                             QObject, Signal, Slot)
 from pandas import DataFrame
 
@@ -118,7 +118,6 @@ class VertScanWorker(QRunnable):
             'Units': 'string'
         }
 
-
             
         # we need to get initial data before moving stages
         position = calculatePosition(self.ser)
@@ -139,9 +138,6 @@ class VertScanWorker(QRunnable):
 
         for i in range(1,steps+1):
             stageC.moveRelative(self.ser,(0,0,stepPulses))
-            # asyncio.run(stageC.readyCheck(self.ser, axes))
-            #self.updatePosition()
-            #self.updateMeasurement()
             position = calculatePosition(self.ser)
             currentTime = time.asctime()
             if MeterConnected:
@@ -151,9 +147,6 @@ class VertScanWorker(QRunnable):
                 units = "not connected"
                 field = float('nan')
             dataList = [currentTime,position[0],position[1],position[2],field,units]
-            #self.data.loc[i] = dataList
-            #self.dataTable.update()
-            #self.dataTable.resizeColumnsToContents()            
             # Emit the data back to the main thread safely
             self.signals.row_added.emit(i, dataList)
             
@@ -358,7 +351,6 @@ class MainWidget(QMainWindow):
         file_menu.addAction(QIcon.fromTheme(QIcon.ThemeIcon.ApplicationExit),
                             "Exit", QKeySequence.StandardKey.Quit, self.close)
         
-        #self.label.setText(meterC.Identify(self.mpSer))
         # set up data frame for scans
         currentTime = time.asctime()
         self.data = DataFrame([
@@ -375,45 +367,42 @@ class MainWidget(QMainWindow):
 
 
     # The following are slot functions that respond to GUI events.
-       
+
+    @Slot()   
     def homeAll(self):
         """Send all stages to home position"""
         stageC.homeAll(self.ser,axes)
-        # asyncio.run(stageC.readyCheck(self.ser, axes))
         print("All stages homed.")
         self.updatePosition()
 
+    @Slot()
     def goStart(self):
         """Move to starting position for scanning"""
         startPos = (0.,0.,50.)
         pulsePos = conv2Pulse(startPos,dist2pulse)
         stageC.gotoPosition(self.ser, pulsePos)
-        # asyncio.run(stageC.readyCheck(self.ser, axes))
         self.updatePosition()
 
-   
+    @Slot()
     def updatePosition(self):
         """Update the label with the current position of the stages"""
-        #self.label.setText("current position: " + str(calculatePosition()))
-        position = calculatePosition()
+        #self.label.setText("current position: " + str(calculatePosition(self.ser)))
+        position = calculatePosition(self.ser)
         self.xPos.setValue(position[0])
         self.yPos.setValue(position[1])
         self.zPos.setValue(position[2])
 
+    @Slot()
     def gotoPosition(self):
         """Move to a specified position in mm"""
         position = (self.gotoX.value(), self.gotoY.value(), self.gotoZ.value())
         pulsePos = conv2Pulse(position,dist2pulse)
         #print("Pulse position: ", pulsePos)
         stageC.gotoPosition(self.ser, pulsePos)
-        # asyncio.run(stageC.readyCheck(self.ser, axes))
         self.updatePosition()
         self.updateMeasurement()
 
-    def updateTable(self,data):
-        """helper function for scans, adds new data to table"""
-
-
+    @Slot()
     def verticalScan(self):
         """Scan in vertical direction a set distance with a specified number of steps"""
         distance = self.distanceWidget.value()
@@ -432,8 +421,7 @@ class MainWidget(QMainWindow):
         self.model = TableModel(self.data)
         self.dataTable.setModel(self.model)
 
-        self.statusBar().showMessage("Starting Scan") # This does not work EEB 7/9/2026
-
+        self.updateStatus("Starting z Scan") 
 
         worker = VertScanWorker(self.ser,(distance,steps))
         worker.signals.row_added.connect(self.on_row_added)
@@ -442,9 +430,8 @@ class MainWidget(QMainWindow):
         # Start worker thread inside the thread pool
         self.threadpool.start(worker)
 
-
         
-
+    @Slot()
     def scan3D(self):
         """Scan magnetic field in 3 dimensions (x,y,z)"""
         # I need starting position as well
@@ -462,7 +449,7 @@ class MainWidget(QMainWindow):
         yStepDistance = yDistance/ySteps
         zStepDistance = zDistance/zSteps
         
-        self.statusBar().showMessage("Starting Scan") # This does not work EEB 7/9/2026
+        self.updateStatus("Starting 3D Scan")
 
         # setup data table parameters
         dtypes = {
@@ -494,10 +481,7 @@ class MainWidget(QMainWindow):
                                                   zStart-z*zStepDistance),dist2pulse)
                     stageC.gotoPosition(self.ser,newPos)
 
-                    # asyncio.run(stageC.readyCheck(self.ser, axes))
-                    #self.updatePosition()
-                    #self.updateMeasurement()
-                    position = calculatePosition()
+                    position = calculatePosition(self.ser)
                     currentTime = time.asctime()
                     if MeterConnected:
                         units = meterC.getUnits(self.mpSer)
@@ -511,14 +495,16 @@ class MainWidget(QMainWindow):
                     self.dataTable.update()
                     self.dataTable.resizeColumnsToContents()
 
-            # asyncio.run(stageC.readyCheck(self.ser, axes))
+        self.updateStatus("Finished 3D scan")
 
 
+    @Slot()
     def buttonClicked(self):
         """Handle button click event"""
         print("Button clicked!")
         # You can add more functionality here as needed
 
+    @Slot()
     def meterButtonClicked(self):
         """Read Magnetic Field meter when button clicked"""
         field = meterC.fieldMeasure(self.mpSer)
@@ -531,6 +517,7 @@ class MainWidget(QMainWindow):
         self.updateMeasurement()
         self.updatePosition()
 
+    @Slot()
     def updateMeasurement(self):
         """Read Magnetic Field meter for scans"""
         units = meterC.getUnits(self.mpSer)
@@ -538,6 +525,7 @@ class MainWidget(QMainWindow):
         self.unitsLabel2.setText(units)
         self.fieldDisplay.setValue(field)
 
+    @Slot()
     def saveData(self):
         """Save data collected from a scan to a CSV file"""
         # open a file dialog
@@ -547,6 +535,7 @@ class MainWidget(QMainWindow):
         self.data.to_csv(filename)
         print("File was saved")
 
+    @Slot(int)
     def chooseUnits(self,index):
         """Select the units to measure magnetic field in"""
         # order of units: ["Gauss","Tesla","Oersted","A/cm"]
@@ -562,15 +551,18 @@ class MainWidget(QMainWindow):
 
     @Slot(int,list)
     def on_row_added(self, row_index, data):
-        # Insert a new row dynamically at row_index
-        #self.table.insertRow(row_index)
+        # Update row dynamically at row_index
         self.data.loc[row_index] = data
         self.dataTable.update()
+        self.dataTable.resizeColumnsToContents()
 
     @Slot()
     def on_process_finished(self):
-       self.statusBar().showMessage("Scan Finished") 
+       self.statusBar().showMessage("Scan Finished")
 
+    @Slot(str)
+    def updateStatus(self,message):
+        self.statusBar().showMessage(message)
 
 
         
