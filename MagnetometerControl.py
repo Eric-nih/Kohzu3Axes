@@ -90,10 +90,12 @@ class WorkerSignals(QObject):
 class VertScanWorker(QRunnable):
     """
     Worker thread that runs a background subroutine.
+    This class produces a separate thread for vertical scans
     """
     def __init__(self, serial, parameters):
         super().__init__()
-        self.ser = serial
+        self.ser = serial[0]
+        self.mpSer = serial[1]
         self.parameters = parameters
         self.signals = WorkerSignals()
 
@@ -130,8 +132,7 @@ class VertScanWorker(QRunnable):
             field = float('nan')
         dataList = [currentTime,position[0],position[1],position[2],field,units]
 
-        # Perhaps,  dataList should be emitted.  Let the MainWindow take care of
-        # filling in the table and running the loop
+        # Emit a dataList of location, time, and magnetic field
         self.signals.row_added.emit(0,dataList)
 
         #self.data.loc[0] = dataList
@@ -154,6 +155,83 @@ class VertScanWorker(QRunnable):
         self.signals.finished.emit()
 
 
+class Scan3DWorker(QRunnable):
+    """ This class produces a separate thread to run a 3D Scan"""
+
+    def __init__(self, serial, parameters):
+        super().__init__()
+        self.ser = serial[0]
+        self.mpSer = serial[1]
+        self.par = parameters  # change parameters to a dictionary  EEB 9/8/2026
+        self.signals = WorkerSignals()
+
+    @Slot()
+    def run(self):
+ 
+        # setup data table parameters
+        dtypes = {
+            'time': 'string',
+            'X': 'float64',
+            'Y': 'float64',
+            'Z': 'float64',
+            'Field': 'float64',
+            'Units': 'string'
+        }
+
+        
+
+        self.data = DataFrame(index=range((self.par["xSteps"]+1)*(self.par["ySteps"]+1)*
+                                          (self.par["zSteps"]+1)),
+                                            columns=dtypes.keys()).astype(dtypes)
+        # self.model = TableModel(self.data)
+        # self.dataTable.setModel(self.model)
+
+        for z in range(0,self.par["zSteps"]+1):
+            newPos = conv2Pulse((self.par["xStart"],self.par["yStart"],self.par["zStart"]
+                                 +z*self.par["zStepDistance"]),dist2pulse)
+            stageC.gotoPosition(self.ser,newPos)
+            print((self.par["xStart"],self.par["yStart"],self.par["zStart"]
+                   -z*self.par["zStepDistance"]))
+
+            for x in range(0,self.par["xSteps"] + 1):
+                newPos = conv2Pulse((self.par["xStart"]+x*self.par["xStepDistance"],
+                                     self.par["yStart"],self.par["zStart"]
+                                     -z*self.par["zStepDistance"]),dist2pulse)
+                stageC.gotoPosition(self.ser,newPos)
+                print((self.par["xStart"]+x*self.par["xStepDistance"]
+                       ,self.par["yStart"],self.par["zStart"]
+                       +z*self.par["zStepDistance"]))
+
+                for y in range(0,self.par["ySteps"] + 1):
+                    newPos = conv2Pulse((self.par["xStart"]+x*self.par["xStepDistance"],
+                                         self.par["yStart"]+y*self.par["yStepDistance"],
+                                        self.par["zStart"]-z*self.par["zStepDistance"]),dist2pulse)
+                    stageC.gotoPosition(self.ser,newPos)
+
+                    position = calculatePosition(self.ser)
+                    currentTime = time.asctime()
+                    if MeterConnected:
+                        units = meterC.getUnits(self.mpSer)
+                        field = meterC.fieldMeasure(self.mpSer)
+                    else:
+                        units = "not connected"
+                        field = float('nan')
+                    dataList = [currentTime,position[0],position[1],position[2],field,units]
+                    index = x + y*(self.par["xSteps"]+1) + z*(self.par["xSteps"]+1)*(
+                        self.par["ySteps"]+1)
+
+                    # Emit the data back to the main thread safely
+                    self.signals.row_added.emit(index, dataList)
+
+        # Signal that the entire work process is finished
+        self.signals.finished.emit()
+
+
+                    # self.data.loc[index] = dataList
+                    # self.dataTable.update()
+                    # self.dataTable.resizeColumnsToContents()
+
+
 class MainWidget(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -169,6 +247,8 @@ class MainWidget(QMainWindow):
         if MeterConnected:
             self.mpSer = serial.Serial('Com5',115200,8,"N",1,timeout=1)
             print("Opening connection to meter")
+        else:
+            self.mpSer = None
 
         widget = QWidget()
         self.setCentralWidget(widget)
@@ -421,9 +501,11 @@ class MainWidget(QMainWindow):
         self.model = TableModel(self.data)
         self.dataTable.setModel(self.model)
 
-        self.updateStatus("Starting z Scan") 
+        self.updateStatus("Starting z Scan")
 
-        worker = VertScanWorker(self.ser,(distance,steps))
+        serial = (self.ser, self.mpSer) 
+
+        worker = VertScanWorker(serial,(distance,steps))
         worker.signals.row_added.connect(self.on_row_added)
         worker.signals.finished.connect(self.on_process_finished)
 
@@ -448,6 +530,11 @@ class MainWidget(QMainWindow):
         xStepDistance = xDistance/xSteps
         yStepDistance = yDistance/ySteps
         zStepDistance = zDistance/zSteps
+
+        parameters = {"xSteps": xSteps, "ySteps": ySteps, "zSteps": zSteps,
+                      "xStart": xStart, "yStart": yStart, "zStart": zStart,
+                      "xStepDistance": xStepDistance, "yStepDistance": yStepDistance,
+                      "zStepDistance": zStepDistance}
         
         self.updateStatus("Starting 3D Scan")
 
@@ -466,36 +553,42 @@ class MainWidget(QMainWindow):
         self.model = TableModel(self.data)
         self.dataTable.setModel(self.model)
 
-        for z in range(0,zSteps+1):
-            newPos = conv2Pulse((xStart,yStart,zStart+z*zStepDistance),dist2pulse)
-            stageC.gotoPosition(self.ser,newPos)
-            print((xStart,yStart,zStart-z*zStepDistance))
+        serial = (self.ser, self.mpSer)
 
-            for x in range(0,xSteps + 1):
-                newPos = conv2Pulse((xStart+x*xStepDistance,yStart,zStart-z*zStepDistance),dist2pulse)
-                stageC.gotoPosition(self.ser,newPos)
-                print((xStart+x*xStepDistance,yStart,zStart+z*zStepDistance))
+        worker = Scan3DWorker(serial,parameters)
+        worker.signals.row_added.connect(self.on_row_added)
+        worker.signals.finished.connect(self.on_process_finished)
 
-                for y in range(0,ySteps + 1):
-                    newPos = conv2Pulse((xStart+x*xStepDistance,yStart+y*yStepDistance,
-                                                  zStart-z*zStepDistance),dist2pulse)
-                    stageC.gotoPosition(self.ser,newPos)
+        # Start worker thread inside the thread pool
+        self.threadpool.start(worker)
 
-                    position = calculatePosition(self.ser)
-                    currentTime = time.asctime()
-                    if MeterConnected:
-                        units = meterC.getUnits(self.mpSer)
-                        field = meterC.fieldMeasure(self.mpSer)
-                    else:
-                        units = "not connected"
-                        field = float('nan')
-                    dataList = [currentTime,position[0],position[1],position[2],field,units]
-                    index = x + y*(xSteps+1)+ z*(xSteps+1)*(ySteps+1)
-                    self.data.loc[index] = dataList
-                    self.dataTable.update()
-                    self.dataTable.resizeColumnsToContents()
+        # for z in range(0,zSteps+1):
+        #     newPos = conv2Pulse((xStart,yStart,zStart+z*zStepDistance),dist2pulse)
+        #     stageC.gotoPosition(self.ser,newPos)
+        #     print((xStart,yStart,zStart-z*zStepDistance))
 
-        self.updateStatus("Finished 3D scan")
+        #     for x in range(0,xSteps + 1):
+        #         newPos = conv2Pulse((xStart+x*xStepDistance,yStart,zStart-z*zStepDistance),dist2pulse)
+        #         stageC.gotoPosition(self.ser,newPos)
+        #         print((xStart+x*xStepDistance,yStart,zStart+z*zStepDistance))
+
+        #         for y in range(0,ySteps + 1):
+        #             newPos = conv2Pulse((xStart+x*xStepDistance,yStart+y*yStepDistance,
+        #                                           zStart-z*zStepDistance),dist2pulse)
+        #             stageC.gotoPosition(self.ser,newPos)
+
+        #             position = calculatePosition(self.ser)
+        #             currentTime = time.asctime()
+        #             if MeterConnected:
+        #                 units = meterC.getUnits(self.mpSer)
+        #                 field = meterC.fieldMeasure(self.mpSer)
+        #             else:
+        #                 units = "not connected"
+        #                 field = float('nan')
+        #             dataList = [currentTime,position[0],position[1],position[2],field,units]
+        #             index = x + y*(xSteps+1)+ z*(xSteps+1)*(ySteps+1)
+
+        # self.updateStatus("Finished 3D scan")
 
 
     @Slot()
