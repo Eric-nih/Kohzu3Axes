@@ -12,21 +12,19 @@ controller.  It is connected to the control computer by an RS-232 cable.
 
 ## Software
 A program written in Python 3 is used to control the setup.  Dependencies include
-PySide6 which is a Python version of Qt, pyserial
+PySide6 which is a Python version of Qt, pyserial, and pandas for data tables and file storage
 
 ## TODO
-- It would be helpful if the current position is updated while running scans.  This will require
-multithreading, along with updating the GUI.
-
 - add controls to change com ports for magnetic field meter and for stage controller
 - add plot of field measurements vs position
 
 ## DONE
-- added display of field measurments, 8/5/2026
+- added display of field measurements, 8/5/2026
 - added data storage of time, position, field measurement, and field units, 8/6/2026
 - added control to change magnetic field units, 8/7/2026
 - added powershell script file and shortcut on desktop
 - 3D scan working 8/13/2026
+- multithreading implemented for scans allowing GUI to update as scans are running, 9/9/2026
 
 Eric Bennett
 *Research Engineer,
