@@ -18,7 +18,6 @@ PySide6 which is a Python version of Qt, pyserial
 - It would be helpful if the current position is updated while running scans.  This will require
 multithreading, along with updating the GUI.
 
-- Add scanning in 3D.
 - add controls to change com ports for magnetic field meter and for stage controller
 - add plot of field measurements vs position
 
@@ -27,6 +26,7 @@ multithreading, along with updating the GUI.
 - added data storage of time, position, field measurement, and field units, 8/6/2026
 - added control to change magnetic field units, 8/7/2026
 - added powershell script file and shortcut on desktop
+- 3D scan working 8/13/2026
 
 Eric Bennett
 *Research Engineer,
