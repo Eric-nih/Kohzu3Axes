@@ -240,7 +240,7 @@ class MainWidget(QMainWindow):
         self.setWindowIcon(QIcon("resources\\magnet--arrow.png"))
 
         # Initialize controller
-        self.ser = serial.Serial('com6', 38400,8,"N",1,timeout=1)
+        self.ser = serial.Serial('com8', 38400,8,"N",1,timeout=1)
         print("Opening Connection to controller")
         self.statusBar().showMessage("Connected to controller")
 

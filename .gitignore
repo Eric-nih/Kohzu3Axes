@@ -1,1 +1,2 @@
 *.csv
+__pycache__/verifySerial.cpython-314.pyc

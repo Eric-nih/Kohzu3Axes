@@ -16,7 +16,6 @@ PySide6 which is a Python version of Qt, pyserial, and pandas for data tables an
 
 ## TODO
 - add controls to change com ports for magnetic field meter and for stage controller
-- add plot of field measurements vs position
 
 ## DONE
 - added display of field measurements, 8/5/2026
